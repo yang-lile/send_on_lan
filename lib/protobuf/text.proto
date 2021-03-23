@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+message OneMessage{
+    string value = 1;
+}
+
+service CC {
+    rpc send (stream OneMessage) returns (stream OneMessage);
+}
