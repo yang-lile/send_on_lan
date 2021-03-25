@@ -152,7 +152,7 @@ packages:
     source: hosted
     version: "1.11.0"
   protobuf:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: protobuf
       url: "https://mirrors.tuna.tsinghua.edu.cn/dart-pub"
