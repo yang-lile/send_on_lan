@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:grpc/grpc.dart';
 import 'package:send_on_lan/protobuf_gen/text.pbgrpc.dart';
 

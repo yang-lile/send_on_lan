@@ -5,7 +5,11 @@ import 'package:grpc/grpc.dart' as grpc;
 import 'package:send_on_lan/communitation.dart';
 import 'package:send_on_lan/protobuf_gen/text.pbgrpc.dart';
 
-main(List<String> args) => runApp(MyApp());
+main(List<String> args) {
+  final server = grpc.Server([MyService()]);
+  server.serve(port: 8080);
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   @override
@@ -24,16 +28,20 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late String clientIp;
-  var serverIp = "";
+  var serverIp = "???";
   late Future future;
   var controller1 = TextEditingController();
   var controller2 = TextEditingController();
+
   @override
   void initState() {
     future = NetworkInterface.list(
       includeLinkLocal: true,
     ).then(
-      (value) => clientIp = value[0].addresses[0].address,
+      (value) {
+        debugPrint(value.toString());
+        return clientIp = value[0].addresses[0].address;
+      },
     );
 
     super.initState();
@@ -48,48 +56,62 @@ class _MyHomePageState extends State<MyHomePage> {
           return CircularProgressIndicator();
         } else {
           return Scaffold(
-            appBar: AppBar(
-              title: TextFormField(
-                controller: controller1,
-                onEditingComplete: () => this.serverIp = controller1.value.text,
-              ),
-            ),
-            bottomNavigationBar: ColoredBox(
-              color: Colors.blue,
-              child: TextFormField(
-                controller: controller2,
-                onEditingComplete: () {
-                  // send
-                  var clientChannel = grpc.ClientChannel(
-                    this.serverIp,
-                  );
-                  var cc = CCClient(clientChannel);
-                  cc.send(
-                    Stream.value(
-                      OneMessage(value: controller2.text),
-                    ),
-                  );
-                },
-              ),
-            ),
-            body: StreamBuilder(
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.active) {
-                  return ListView.builder(
+            appBar: AppBar(title: Text(clientIp)),
+            body: Column(
+              children: [
+                TextFormField(
+                  controller: controller1,
+                  onEditingComplete: () =>
+                      this.serverIp = controller1.value.text,
+                ),
+                TextFormField(
+                  controller: controller2,
+                  onEditingComplete: () {
+                    // send
+                    var clientChannel = grpc.ClientChannel(
+                      this.serverIp,
+                      port: 8080,
+                      options: const grpc.ChannelOptions(
+                        credentials: grpc.ChannelCredentials.insecure(),
+                      ),
+                    );
+                    var stub = CCClient(
+                      clientChannel,
+                      options: grpc.CallOptions(
+                        timeout: Duration(seconds: 30),
+                      ),
+                    );
+                    stub.send(
+                      Stream.value(
+                        OneMessage(value: controller2.text),
+                      ),
+                    );
+                    debugPrint(serverIp);
+                  },
+                ),
+                Expanded(
+                  child: ListView.builder(
                     itemCount: MyService.messages.length,
                     itemBuilder: (context, index) {
-                      return ListTile(
-                        title: MyService.messages[index],
+                      return Container(
+                        height: 50.0,
+                        width: 300.0,
+                        alignment: Alignment.center,
+                        child: Text(MyService.messages[index]),
                       );
                     },
-                  );
-                } else if (snap.connectionState == ConnectionState.none) {
-                  return Text("data");
-                } else {
-                  return CircularProgressIndicator();
-                }
-              },
+                  ),
+                ),
+              ],
             ),
+            floatingActionButton: FloatingActionButton(
+                child: Icon(Icons.download_rounded),
+                onPressed: () {
+                  setState(() {
+                    print(MyService.messages);
+                    MyService.messages.last = "!${MyService.messages.last}";
+                  });
+                }),
           );
         }
       },
